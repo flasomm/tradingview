@@ -93,9 +93,9 @@ find_bar_index_for_value(val, session_start, session_end) =>
     var int idx = na
     max_lookback = math.min(bar_index, 1000)
     for i = 0 to max_lookback
-        if i > bar_index
+        if i > bar_index or na(time[i])
             break
-        if not na(time[i]) and time[i] >= session_start and time[i] <= session_end and (high[i] == val or low[i] == val)
+        if time[i] >= session_start and time[i] <= session_end and (high[i] == val or low[i] == val)
             idx := bar_index - i
             break
     idx
