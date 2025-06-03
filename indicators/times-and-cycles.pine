@@ -1,0 +1,142 @@
+//@version=6
+indicator("[FS] Time & Cycles", overlay=true)
+
+// === INPUT PARAMETERS ===
+defaultColor = color.new(color.white, 50)
+
+// === PREVIOUS HIGH/LOW ===
+show_daily = input.bool(true, "D", inline="vsettings", group="Previous High/Low")
+color_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
+show_prev_daily = input.bool(true, "W", inline="vsettings", group="Previous High/Low")
+color_prev_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
+show_prev_weekly = input.bool(true, "M", inline="vsettings", group="Previous High/Low")
+color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
+
+// === HISTORY ===
+historyLevels = input.int(2, "History of previous levels", minval=1, maxval=10)
+
+// === DISPLAY ===
+show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
+show_dates = input.bool(false, "Show Dates", inline="showLabels", group="Previous High/Low")
+
+// === STYLE ===
+line_style_opt = input.string("solid", "Line Style", options=["solid", "dashed", "dotted"], group="Previous High/Low")
+line_style = line_style_opt == "solid" ? line.style_solid : line_style_opt == "dashed" ? line.style_dashed : line.style_dotted
+
+// === TIMEFRAME DETECTION ===
+// 1min to 4h: daily/weekly, daily only, etc.
+is_intraday = timeframe.isminutes or timeframe.isseconds or timeframe.isintraday
+is_daily = timeframe.isdaily
+is_weekly = timeframe.isweekly
+is_monthly = timeframe.ismonthly
+
+// === ARRAYS ===
+var float[] dailyHighs = array.new_float()
+var float[] dailyLows = array.new_float()
+var int[] dailyTimes = array.new_int()
+
+// === LEVELS ACCUMULATION (INLINED) ===
+if bar_index == 0
+    array.unshift(dailyHighs, high)
+    array.unshift(dailyLows, low)
+    array.unshift(dailyTimes, time)
+
+is_new_day = ta.change(time("D")) != 0
+
+if is_new_day
+    array.unshift(dailyHighs, high)
+    array.unshift(dailyLows, low)
+    array.unshift(dailyTimes, time)
+    if array.size(dailyHighs) > historyLevels + 1
+        array.pop(dailyHighs)
+        array.pop(dailyLows)
+        array.pop(dailyTimes)
+else
+    if array.size(dailyHighs) > 0
+        array.set(dailyHighs, 0, math.max(array.get(dailyHighs, 0), high))
+    if array.size(dailyLows) > 0
+        array.set(dailyLows, 0, math.min(array.get(dailyLows, 0), low))
+
+
+// === PERSISTENT LINES ===
+var line dh_line = na
+var line dl_line = na
+var line[] pdh_lines = array.new<line>()
+var line[] pdl_lines = array.new<line>()
+
+format_date(ts) =>
+    m = month(ts)
+    d = dayofmonth(ts)
+    str.tostring(m, "00") + "/" + str.tostring(d, "00")
+
+// === FIND THE BAR_INDEX OF A HIGH/LOW IN A SESSION ===
+find_bar_index_for_value(val, session_start, session_end) =>
+    var int idx = na
+    max_lookback = math.min(bar_index, 1000)
+    for i = 0 to max_lookback
+        if i > bar_index
+            break
+        if not na(time[i]) and time[i] >= session_start and time[i] <= session_end and (high[i] == val or low[i] == val)
+            idx := bar_index - i
+            break
+    idx
+
+delete_lines_array(arr) =>
+    if array.size(arr) > 0
+        for i = 0 to array.size(arr) - 1
+            line.delete(array.get(arr, i))
+        array.clear(arr)
+
+draw_level(line ref, x1, y, color, style, label_text, yloc, show_line, show_label, offset) =>
+    var line l = ref
+    if show_line and not na(x1)
+        if not na(l)
+            line.delete(l)
+        l := line.new(x1=x1, y1=y, x2=bar_index + 1, y2=y, extend=extend.right, color=color, style=style, width=1, xloc=xloc.bar_index)
+    if show_line and show_label and not na(x1)
+        label.new(x=bar_index + offset, y=y, text=label_text, style=label.style_none, textcolor=color, xloc=xloc.bar_index, yloc=yloc)
+        label.new(x=x1, y=y, text=label_text, style=label.style_none, textcolor=color, xloc=xloc.bar_index, yloc=yloc)
+    l
+
+// === LEVELS AND LINES DISPLAY ===
+if array.size(dailyHighs) > 0 and array.size(dailyLows) > 0 and array.size(dailyTimes) > 0 and barstate.islast
+    // --- DH/DL (level 0) ---
+    dh = array.get(dailyHighs, 0)
+    dl = array.get(dailyLows, 0)
+    t = array.get(dailyTimes, 0)
+    session_start = t
+    session_end = timenow
+    dh_idx = find_bar_index_for_value(dh, session_start, session_end)
+    dl_idx = find_bar_index_for_value(dl, session_start, session_end)
+
+    // Lines and labels DH/DL
+    offset = 10
+    dh_line := draw_level(dh_line, dh_idx, dh, color_daily, line_style, "DH" + (show_dates ? " (" + format_date(t) + ")" : ""), yloc.abovebar, show_daily, show_labels, offset)
+    dl_line := draw_level(dl_line, dl_idx, dl, color_daily, line_style, "DL" + (show_dates ? " (" + format_date(t) + ")" : ""), yloc.belowbar, show_daily, show_labels, offset)
+
+    // --- PDH/PDL (previous levels) ---
+    if array.size(dailyHighs) > 1
+        delete_lines_array(pdh_lines)
+        delete_lines_array(pdl_lines)
+        for i = 1 to math.min(historyLevels, array.size(dailyHighs) - 1)
+            pdh = array.get(dailyHighs, i)
+            pdl = array.get(dailyLows, i)
+            t_p = array.get(dailyTimes, i)
+            session_start_p = array.get(dailyTimes, i)
+            session_end_p = array.get(dailyTimes, i - 1)
+            pdh_idx = find_bar_index_for_value(pdh, session_start_p, session_end_p)
+            pdl_idx = find_bar_index_for_value(pdl, session_start_p, session_end_p)
+            suffix = i > 1 ? "-" + str.tostring(i) : ""
+            offset_p = 10 + i * 10
+            // Lines and labels
+            if show_prev_daily and not na(pdh_idx)
+                array.push(pdh_lines, line.new(x1=pdh_idx, y1=pdh, x2=bar_index + 1, y2=pdh, extend=extend.right, color=color_prev_daily, style=line_style, width=1, xloc=xloc.bar_index))
+            if show_prev_daily and not na(pdl_idx)
+                array.push(pdl_lines, line.new(x1=pdl_idx, y1=pdl, x2=bar_index + 1, y2=pdl, extend=extend.right, color=color_prev_daily, style=line_style, width=1, xloc=xloc.bar_index))
+            if show_prev_daily and show_labels and not na(pdh_idx)
+                label.new(x=bar_index + offset_p, y=pdh, text="PDH" + suffix + (show_dates ? " (" + format_date(t_p) + ")" : ""), style=label.style_none, textcolor=color_prev_daily, xloc=xloc.bar_index, yloc=yloc.abovebar)
+                label.new(x=pdh_idx, y=pdh, text="PDH" + suffix + (show_dates ? " (" + format_date(t_p) + ")" : ""), style=label.style_none, textcolor=color_prev_daily, xloc=xloc.bar_index, yloc=yloc.abovebar)
+            if show_prev_daily and show_labels and not na(pdl_idx)
+                label.new(x=bar_index + offset_p, y=pdl, text="PDL" + suffix + (show_dates ? " (" + format_date(t_p) + ")" : ""), style=label.style_none, textcolor=color_prev_daily, xloc=xloc.bar_index, yloc=yloc.belowbar)
+                label.new(x=pdl_idx, y=pdl, text="PDL" + suffix + (show_dates ? " (" + format_date(t_p) + ")" : ""), style=label.style_none, textcolor=color_prev_daily, xloc=xloc.bar_index, yloc=yloc.belowbar)
+
