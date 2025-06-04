@@ -13,7 +13,8 @@ show_prev_weekly = input.bool(true, "W", inline="vsettings", group="Previous Hig
 color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
 
 // === HISTORY ===
-historyLevels = input.int(2, "History of previous levels", minval=1, maxval=10)
+historyLevels_daily = input.int(2, "History Levels (PDL/PDH)", minval=1, maxval=10, group="Previous High/Low")
+historyLevels_weekly = input.int(2, "History Levels (PWL/PWH)", minval=1, maxval=10, group="Previous High/Low")
 
 // === DISPLAY ===
 show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
@@ -53,7 +54,7 @@ if is_new_day
     array.unshift(dailyHighs, high)
     array.unshift(dailyLows, low)
     array.unshift(dailyTimes, time)
-    if array.size(dailyHighs) > historyLevels + 1
+    if array.size(dailyHighs) > historyLevels_daily + 1
         array.pop(dailyHighs)
         array.pop(dailyLows)
         array.pop(dailyTimes)
@@ -67,7 +68,7 @@ if is_new_week
     array.unshift(weeklyHighs, high)
     array.unshift(weeklyLows, low)
     array.unshift(weeklyTimes, time)
-    if array.size(weeklyHighs) > historyLevels
+    if array.size(weeklyHighs) > historyLevels_weekly
         array.pop(weeklyHighs)
         array.pop(weeklyLows)
         array.pop(weeklyTimes)
@@ -141,7 +142,7 @@ if barstate.islast
         float[] used_levels = array.new_float()
         // --- Weekly levels (PWH/PWL) ---
         if array.size(weeklyHighs) > 0 and array.size(weeklyLows) > 0 and array.size(weeklyTimes) > 0 and show_prev_weekly
-            for i = 1 to math.min(historyLevels - 1, array.size(weeklyHighs) - 1)
+            for i = 1 to math.min(historyLevels_weekly, array.size(weeklyHighs) - 1)
                 pwh = array.get(weeklyHighs, i)
                 pwl = array.get(weeklyLows, i)
                 t_w = array.get(weeklyTimes, i)
@@ -172,7 +173,7 @@ if barstate.islast
                 plot_level(used_levels, dl_idx, dl, color_daily, line_style, label_dl, yloc.belowbar, true, show_labels, offset)
         // --- Previous Daily High/Low (PDH/PDL) ---
         if array.size(dailyHighs) > 1
-            for i = 1 to math.min(historyLevels, array.size(dailyHighs) - 1)
+            for i = 1 to math.min(historyLevels_daily, array.size(dailyHighs) - 1)
                 pdh = array.get(dailyHighs, i)
                 pdl = array.get(dailyLows, i)
                 t_p = array.get(dailyTimes, i)
@@ -191,7 +192,7 @@ if barstate.islast
     else if is_daily
         // Affichage uniquement PWH/PWL
         if array.size(weeklyHighs) > 0 and array.size(weeklyLows) > 0 and array.size(weeklyTimes) > 0 and show_prev_weekly
-            for i = 0 to math.min(historyLevels - 1, array.size(weeklyHighs) - 1)
+            for i = 0 to math.min(historyLevels_weekly, array.size(weeklyHighs) - 1)
                 pwh = array.get(weeklyHighs, i)
                 pwl = array.get(weeklyLows, i)
                 t_w = array.get(weeklyTimes, i)
