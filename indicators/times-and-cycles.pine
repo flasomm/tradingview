@@ -2,7 +2,7 @@
 indicator("[FS] Time & Cycles", overlay=true)
 
 // === INPUT PARAMETERS ===
-defaultColor = color.new(color.white, 50)
+defaultColor = color.new(color.blue, 50)
 
 // === PREVIOUS HIGH/LOW ===
 show_daily = input.bool(true, "Today", inline="vsettings", group="Previous High/Low")
@@ -142,8 +142,10 @@ if barstate.islast
     if is_intraday
         // --- Midnight ---
         if show_midnight and not na(midnightLow) and not na(midnightBarIdx)
-            float[] used_levels_mn = array.new_float()
-            plot_level(used_levels_mn, midnightBarIdx, midnightLow, color_midnight, line_style, "MN", yloc.belowbar, true, show_labels, 10)
+            max_lookback = 1000
+            if bar_index - midnightBarIdx <= max_lookback and midnightBarIdx >= 0
+                float[] used_levels_mn = array.new_float()
+                plot_level(used_levels_mn, midnightBarIdx, midnightLow, color_midnight, line_style, "MN", yloc.belowbar, true, show_labels, 10)
         // --- Weekly levels (PWH/PWL) ---
         if array.size(weeklyHighs) > 0 and array.size(weeklyLows) > 0 and array.size(weeklyTimes) > 0 and show_prev_weekly
             for i = 1 to math.min(historyLevels_weekly, array.size(weeklyHighs) - 1)
@@ -158,8 +160,10 @@ if barstate.islast
                 offset_w = 10 + i * 10
                 label_pwh = "PWH" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
                 label_pwl = "PWL" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
-                plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, offset_w)
-                plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, offset_w)
+                if bar_index - pwh_idx <= 500 and pwh_idx >= 0
+                    plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, offset_w)
+                if bar_index - pwl_idx <= 500 and pwl_idx >= 0
+                    plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, offset_w)
         // --- Daily High/Low (DH/DL) ---
         if array.size(dailyHighs) > 0 and array.size(dailyHighBars) > 0 and array.size(dailyLows) > 0 and array.size(dailyLowBars) > 0
             dh = array.get(dailyHighs, 0)
@@ -169,8 +173,10 @@ if barstate.islast
             label_dh = "DH"
             label_dl = "DL"
             if show_daily
-                plot_level(used_levels, dhBar, dh, color_daily, line_style, label_dh, yloc.abovebar, true, show_labels, 10)
-                plot_level(used_levels, dlBar, dl, color_daily, line_style, label_dl, yloc.belowbar, true, show_labels, 10)
+                if bar_index - dhBar <= 500 and dhBar >= 0
+                    plot_level(used_levels, dhBar, dh, color_daily, line_style, label_dh, yloc.abovebar, true, show_labels, 10)
+                if bar_index - dlBar <= 500 and dlBar >= 0
+                    plot_level(used_levels, dlBar, dl, color_daily, line_style, label_dl, yloc.belowbar, true, show_labels, 10)
         // --- Previous Daily High/Low (PDH/PDL) ---
         for i = 1 to math.min(historyLevels_daily, array.size(dailyHighs) - 1)
             pdh = array.get(dailyHighs, i)
@@ -180,8 +186,10 @@ if barstate.islast
             label_pdh = "PDH" + (i > 1 ? "-" + str.tostring(i) : "")
             label_pdl = "PDL" + (i > 1 ? "-" + str.tostring(i) : "")
             if show_prev_daily
-                plot_level(used_levels, pdhBar, pdh, color_prev_daily, line_style, label_pdh, yloc.abovebar, true, show_labels, 10)
-                plot_level(used_levels, pdlBar, pdl, color_prev_daily, line_style, label_pdl, yloc.belowbar, true, show_labels, 10)
+                if bar_index - pdhBar <= 500 and pdhBar >= 0
+                    plot_level(used_levels, pdhBar, pdh, color_prev_daily, line_style, label_pdh, yloc.abovebar, true, show_labels, 10)
+                if bar_index - pdlBar <= 500 and pdlBar >= 0
+                    plot_level(used_levels, pdlBar, pdl, color_prev_daily, line_style, label_pdl, yloc.belowbar, true, show_labels, 10)
         array.clear(used_levels)
     else if is_daily
         // Affichage uniquement PWH/PWL
@@ -199,5 +207,7 @@ if barstate.islast
                 label_pwh = "PWH" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
                 label_pwl = "PWL" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
                 if show_labels
-                    plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, offset_w)
-                    plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, offset_w)
+                    if bar_index - pwh_idx <= 500 and pwh_idx >= 0
+                        plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, offset_w)
+                    if bar_index - pwl_idx <= 500 and pwl_idx >= 0
+                        plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, offset_w)
