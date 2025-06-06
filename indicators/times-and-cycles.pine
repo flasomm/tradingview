@@ -4,6 +4,7 @@ indicator("[FS] Time & Cycles", overlay=true)
 // === INPUT PARAMETERS ===
 defaultColor = color.new(color.white, 50)
 
+
 // === PREVIOUS HIGH/LOW ===
 show_daily = input.bool(true, "Today", inline="vsettings", group="Previous High/Low")
 color_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
@@ -11,14 +12,16 @@ show_prev_daily = input.bool(true, "D", inline="vsettings", group="Previous High
 color_prev_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
 show_prev_weekly = input.bool(true, "W", inline="vsettings", group="Previous High/Low")
 color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
-
-// === HISTORY ===
-historyLevels_daily = input.int(2, "History Levels (PDL/PDH)", minval=1, maxval=10, group="Previous High/Low")
-historyLevels_weekly = input.int(2, "History Levels (PWL/PWH)", minval=1, maxval=10, group="Previous High/Low")
+show_midnight = input.bool(true, "(00:00)", inline="vsettings", group="Previous High/Low")
+color_midnight = input.color(color.new(color.purple, 0), "", inline="vsettings", group="Previous High/Low")
 
 // === DISPLAY ===
 show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
 show_dates = input.bool(false, "Show Dates", inline="showLabels", group="Previous High/Low")
+
+// === HISTORY ===
+historyLevels_daily = input.int(2, "History Levels (PDL/PDH)", minval=1, maxval=10, group="Previous High/Low")
+historyLevels_weekly = input.int(2, "History Levels (PWL/PWH)", minval=1, maxval=10, group="Previous High/Low")
 
 // === STYLE ===
 line_style_opt = input.string("solid", "Line Style", options=["solid", "dashed", "dotted"], group="Previous High/Low")
@@ -46,6 +49,17 @@ if bar_index == 0
     array.unshift(weeklyHighs, high)
     array.unshift(weeklyLows, low)
     array.unshift(weeklyTimes, time)
+
+// === PARAMÈTRES MIDNIGHT ===
+var label mnLabel = na
+
+// === DÉTECTION DE LA PREMIÈRE BOUGIE DE LA JOURNÉE UTC ===
+var float midnightLow = na
+var int midnightBarIdx = na
+
+if ta.change(time("D")) != 0
+    midnightLow := low
+    midnightBarIdx := bar_index
 
 is_new_day = ta.change(time("D")) != 0
 is_new_week = ta.change(time("W")) != 0
@@ -92,7 +106,7 @@ format_date(ts) =>
 // === FIND THE BAR_INDEX OF A HIGH/LOW IN A SESSION ===
 find_bar_index_for_value(val, session_start, session_end) =>
     var int idx = na
-    max_lookback = math.min(bar_index, 1000)
+    max_lookback = math.min(bar_index, 500, bar_index)
     for i = 0 to max_lookback
         if i > bar_index or na(time[i])
             break
@@ -203,16 +217,22 @@ if barstate.islast
                 suffix = i > 0 ? "-" + str.tostring(i + 1) : ""
                 offset_w = 10 + i * 10
                 if not na(pwh_idx)
-                    line.new(x1=pwh_idx, y1=pwh, x2=bar_index + 1, y2=pwh, extend=extend.right, color=color_prev_weekly, style=line_style, width=1, xloc=xloc.bar_index)
+                    line.new(pwh_idx, pwh, bar_index + 1, pwh, xloc.bar_index, extend.right, color_prev_weekly, line_style, 1)
                     if show_labels
                         label_text = "PWH" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
-                        label.new(x=bar_index + offset_w, y=pwh, text=label_text, style=label.style_none, textcolor=color_prev_weekly, xloc=xloc.bar_index, yloc=yloc.abovebar)
-                        label.new(x=pwh_idx, y=pwh, text=label_text, style=label.style_none, textcolor=color_prev_weekly, xloc=xloc.bar_index, yloc=yloc.abovebar)
+                        label.new(bar_index + offset_w, pwh, label_text, xloc.bar_index, yloc.abovebar, color_prev_weekly, label.style_none, color.white)
+                        label.new(pwh_idx, pwh, label_text, xloc.bar_index, yloc.abovebar, color_prev_weekly, label.style_none, color.white)
                 if not na(pwl_idx)
-                    line.new(x1=pwl_idx, y1=pwl, x2=bar_index + 1, y2=pwl, extend=extend.right, color=color_prev_weekly, style=line_style, width=1, xloc=xloc.bar_index)
+                    line.new(pwl_idx, pwl, bar_index + 1, pwl, xloc.bar_index, extend.right, color_prev_weekly, line_style, 1)
                     if show_labels
                         label_text = "PWL" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
-                        label.new(x=bar_index + offset_w, y=pwl, text=label_text, style=label.style_none, textcolor=color_prev_weekly, xloc=xloc.bar_index, yloc=yloc.belowbar)
-                        label.new(x=pwl_idx, y=pwl, text=label_text, style=label.style_none, textcolor=color_prev_weekly, xloc=xloc.bar_index, yloc=yloc.belowbar)
-    
+                        label.new(bar_index + offset_w, pwl, label_text, xloc.bar_index, yloc.belowbar, color_prev_weekly, label.style_none, color.white)
+                        label.new(pwl_idx, pwl, label_text, xloc.bar_index, yloc.belowbar, color_prev_weekly, label.style_none, color.white)
 
+// === AFFICHAGE LIGNE ET LABEL MN ===
+if barstate.islast and show_midnight and not na(midnightLow) and not na(midnightBarIdx)
+    line.new(midnightBarIdx, midnightLow, bar_index, midnightLow, xloc.bar_index, extend.right, color_midnight, line_style, 1)
+    if show_labels
+        if not na(mnLabel)
+            label.delete(mnLabel)
+        mnLabel := label.new(midnightBarIdx, midnightLow, "MN", xloc.bar_index, yloc.belowbar, color_midnight, label.style_label_up, color.white, size.tiny)
