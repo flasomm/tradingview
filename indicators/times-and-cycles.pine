@@ -3,16 +3,15 @@ indicator("[FS] Time & Cycles", overlay=true)
 
 // === INPUT PARAMETERS ===
 defaultColor = color.new(color.blue, 50)
+input_group_previous_high_low = "Previous High/Low"
 
 // === PREVIOUS HIGH/LOW ===
-show_daily = input.bool(true, "Today", inline="vsettings", group="Previous High/Low")
-color_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
-show_prev_daily = input.bool(true, "D", inline="vsettings", group="Previous High/Low")
-color_prev_daily = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
-show_prev_weekly = input.bool(true, "W", inline="vsettings", group="Previous High/Low")
-color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group="Previous High/Low")
-show_midnight = input.bool(true, "(00:00)", inline="vsettings", group="Previous High/Low")
-color_midnight = input.color(color.new(color.purple, 0), "", inline="vsettings", group="Previous High/Low")
+show_daily = input.bool(true, "Today", inline="vsettings", group=input_group_previous_high_low)
+color_daily = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
+show_prev_daily = input.bool(true, "D", inline="vsettings", group=input_group_previous_high_low)
+color_prev_daily = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
+show_prev_weekly = input.bool(true, "W", inline="vsettings", group=input_group_previous_high_low)
+color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
 
 // === DISPLAY ===
 show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
@@ -24,7 +23,6 @@ historyLevels_weekly = input.int(2, "History Levels (PWL/PWH)", minval=1, maxval
 
 // === STYLE ===
 line_style_opt = input.string("solid", "Line Style", options=["solid", "dashed", "dotted"], group="Previous High/Low")
-line_style = line_style_opt == "solid" ? line.style_solid : line_style_opt == "dashed" ? line.style_dashed : line.style_dotted
 
 // === TIMEFRAME DETECTION ===
 is_intraday = (timeframe.isminutes and timeframe.multiplier <= 240) or timeframe.isseconds or (timeframe.isintraday and timeframe.multiplier <= 240)
@@ -55,17 +53,6 @@ if bar_index == 0
     array.unshift(weeklyLowBars, bar_index)
     array.unshift(weeklyTimes, time)
 
-// === PARAMÈTRES MIDNIGHT ===
-var label mnLabel = na
-
-// === DÉTECTION DE LA PREMIÈRE BOUGIE DE LA JOURNÉE UTC ===
-var float midnightLow = na
-var int midnightBarIdx = na
-
-if ta.change(time("D")) != 0
-    midnightLow := low
-    midnightBarIdx := bar_index
-
 is_new_day = ta.change(time("D")) != 0
 is_new_week = ta.change(time("W")) != 0
 
@@ -79,8 +66,6 @@ if is_new_day
         array.pop(dailyHighBars)
         array.pop(dailyLows)
         array.pop(dailyLowBars)
-    midnightLow := low
-    midnightBarIdx := bar_index
 else
     if array.size(dailyHighs) > 0 and high > array.get(dailyHighs, 0)
         array.set(dailyHighs, 0, high)
@@ -115,6 +100,10 @@ var line dl_line = na
 var line[] pdh_lines = array.new<line>()
 var line[] pdl_lines = array.new<line>()
 
+// === UTILITY: Convert style string to line style ===
+get_line_style(style_str) =>
+    style_str == "solid" ? line.style_solid : style_str == "dotted" ? line.style_dotted : line.style_dashed
+
 format_date(ts) =>
     m = month(ts)
     d = dayofmonth(ts)
@@ -136,7 +125,8 @@ find_bar_index_for_value(val, session_start, session_end) =>
 // === UTILITY: Plot level if not already used ===
 plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, show_label, offset) =>
     max_lookback = 1000
-    is_idx_in_buffer = idx >= 0 and idx <= bar_index and bar_index - idx <= max_lookback
+    rel_idx = bar_index - idx
+    is_idx_in_buffer = idx >= 0 and idx <= bar_index and rel_idx >= 0 and rel_idx <= max_lookback and not na(close[rel_idx])
     if array.indexof(used_levels, price) == -1 and not na(idx) and is_idx_in_buffer
         array.push(used_levels, price)
         if show_line
@@ -149,11 +139,6 @@ plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, s
 if barstate.islast
     float[] used_levels = array.new_float()
     if is_intraday
-        // --- Midnight ---
-        if show_midnight and not na(midnightLow) and not na(midnightBarIdx)
-            if bar_index - midnightBarIdx <= 1000 and midnightBarIdx >= 0
-                float[] used_levels_mn = array.new_float()
-                plot_level(used_levels_mn, midnightBarIdx, midnightLow, color_midnight, line_style, "MN", yloc.belowbar, true, show_labels, 10)
         // --- Weekly levels (PWH/PWL) ---
         if array.size(weeklyHighs) > 0 and array.size(weeklyLows) > 0 and array.size(weeklyTimes) > 0 and show_prev_weekly
             for i = 0 to math.min(historyLevels_weekly - 1, array.size(weeklyHighs) - 1)
@@ -163,8 +148,8 @@ if barstate.islast
                 pwlBar = array.get(weeklyLowBars, i)
                 label_pwh = "PWH" + (i > 0 ? "-" + str.tostring(i + 1) : "")
                 label_pwl = "PWL" + (i > 0 ? "-" + str.tostring(i + 1) : "")
-                plot_level(used_levels, pwhBar, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, 10)
-                plot_level(used_levels, pwlBar, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, 10)
+                plot_level(used_levels, pwhBar, pwh, color_prev_weekly, get_line_style(line_style_opt), label_pwh, yloc.abovebar, true, show_labels, 10)
+                plot_level(used_levels, pwlBar, pwl, color_prev_weekly, get_line_style(line_style_opt), label_pwl, yloc.belowbar, true, show_labels, 10)
         // --- Daily High/Low (DH/DL) ---
         if array.size(dailyHighs) > 0 and array.size(dailyHighBars) > 0 and array.size(dailyLows) > 0 and array.size(dailyLowBars) > 0
             dh = array.get(dailyHighs, 0)
@@ -174,8 +159,8 @@ if barstate.islast
             label_dh = "DH"
             label_dl = "DL"
             if show_daily
-                plot_level(used_levels, dhBar, dh, color_daily, line_style, label_dh, yloc.abovebar, true, show_labels, 10)
-                plot_level(used_levels, dlBar, dl, color_daily, line_style, label_dl, yloc.belowbar, true, show_labels, 10)
+                plot_level(used_levels, dhBar, dh, color_daily, get_line_style(line_style_opt), label_dh, yloc.abovebar, true, show_labels, 10)
+                plot_level(used_levels, dlBar, dl, color_daily, get_line_style(line_style_opt), label_dl, yloc.belowbar, true, show_labels, 10)
         // --- Previous Daily High/Low (PDH/PDL) ---
         for i = 1 to math.min(historyLevels_daily, array.size(dailyHighs) - 1)
             pdh = array.get(dailyHighs, i)
@@ -185,8 +170,8 @@ if barstate.islast
             label_pdh = "PDH" + (i > 1 ? "-" + str.tostring(i) : "")
             label_pdl = "PDL" + (i > 1 ? "-" + str.tostring(i) : "")
             if show_prev_daily
-                plot_level(used_levels, pdhBar, pdh, color_prev_daily, line_style, label_pdh, yloc.abovebar, true, show_labels, 10)
-                plot_level(used_levels, pdlBar, pdl, color_prev_daily, line_style, label_pdl, yloc.belowbar, true, show_labels, 10)
+                plot_level(used_levels, pdhBar, pdh, color_prev_daily, get_line_style(line_style_opt), label_pdh, yloc.abovebar, true, show_labels, 10)
+                plot_level(used_levels, pdlBar, pdl, color_prev_daily, get_line_style(line_style_opt), label_pdl, yloc.belowbar, true, show_labels, 10)
         array.clear(used_levels)
     else if is_daily
         // Affichage uniquement PWH/PWL
@@ -205,6 +190,63 @@ if barstate.islast
                 label_pwl = "PWL" + suffix + (show_dates ? " (" + format_date(t_w) + ")" : "")
                 if show_labels
                     if bar_index - pwh_idx <= 500 and pwh_idx >= 0
-                        plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, line_style, label_pwh, yloc.abovebar, true, show_labels, offset_w)
+                        plot_level(used_levels, pwh_idx, pwh, color_prev_weekly, get_line_style(line_style_opt), label_pwh, yloc.abovebar, true, show_labels, offset_w)
                     if bar_index - pwl_idx <= 500 and pwl_idx >= 0
-                        plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, line_style, label_pwl, yloc.belowbar, true, show_labels, offset_w)
+                        plot_level(used_levels, pwl_idx, pwl, color_prev_weekly, get_line_style(line_style_opt), label_pwl, yloc.belowbar, true, show_labels, offset_w)
+
+// === DAILY CYCLES ===
+input_group_daily_cycles = "Daily Cycles"
+
+show_cycle_00 = input.bool(true, "00:00", inline="dailycicle0000", group=input_group_daily_cycles)
+color_cycle_00 = input.color(color.new(color.purple, 0), "", inline="dailycicle0000", group=input_group_daily_cycles)
+style_cycle_00 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0000", group=input_group_daily_cycles)
+
+show_cycle_0930 = input.bool(false, "09:30", inline="dailycicle0930", group=input_group_daily_cycles)
+color_cycle_0930 = input.color(defaultColor, "", inline="dailycicle0930", group=input_group_daily_cycles)
+style_cycle_0930 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0930", group=input_group_daily_cycles)
+
+show_cycle_1530 = input.bool(false, "15:30", inline="dailycicle1530", group=input_group_daily_cycles)
+color_cycle_1530 = input.color(defaultColor, "", inline="dailycicle1530", group=input_group_daily_cycles)
+style_cycle_1530 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1530", group=input_group_daily_cycles)
+
+show_cycle_1600 = input.bool(false, "16:00", inline="dailycicle1600", group=input_group_daily_cycles)
+color_cycle_1600 = input.color(defaultColor, "", inline="dailycicle1600", group=input_group_daily_cycles)
+style_cycle_1600 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1600", group=input_group_daily_cycles)
+
+var float cycle00Low = na
+var int cycle00BarIdx = na
+var float cycle0930Low = na
+var int cycle0930BarIdx = na
+var float cycle1530Low = na
+var int cycle1530BarIdx = na
+var float cycle1600Low = na
+var int cycle1600BarIdx = na
+
+is_new_00 = (hour == 0 and minute == 0)
+is_new_0930 = (hour == 9 and minute == 30)
+is_new_1530 = (hour == 15 and minute == 30)
+is_new_1600 = (hour == 16 and minute == 0)
+
+if is_new_00
+    cycle00Low := low
+    cycle00BarIdx := bar_index
+if is_new_0930
+    cycle0930Low := low
+    cycle0930BarIdx := bar_index
+if is_new_1530
+    cycle1530Low := low
+    cycle1530BarIdx := bar_index
+if is_new_1600
+    cycle1600Low := low
+    cycle1600BarIdx := bar_index
+
+if barstate.islast and is_intraday
+    float[] used_levels_cycles = array.new_float()
+    if show_cycle_00 and not na(cycle00Low) and not na(cycle00BarIdx)
+        plot_level(used_levels_cycles, cycle00BarIdx, cycle00Low, color_cycle_00, get_line_style(style_cycle_00), "00:00", yloc.belowbar, true, show_labels, 10)
+    if show_cycle_0930 and not na(cycle0930Low) and not na(cycle0930BarIdx)
+        plot_level(used_levels_cycles, cycle0930BarIdx, cycle0930Low, color_cycle_0930, get_line_style(style_cycle_0930), "09:30", yloc.belowbar, true, show_labels, 10)
+    if show_cycle_1530 and not na(cycle1530Low) and not na(cycle1530BarIdx)
+        plot_level(used_levels_cycles, cycle1530BarIdx, cycle1530Low, color_cycle_1530, get_line_style(style_cycle_1530), "15:30", yloc.belowbar, true, show_labels, 10)
+    if show_cycle_1600 and not na(cycle1600Low) and not na(cycle1600BarIdx)
+        plot_level(used_levels_cycles, cycle1600BarIdx, cycle1600Low, color_cycle_1600, get_line_style(style_cycle_1600), "16:00", yloc.belowbar, true, show_labels, 10)
