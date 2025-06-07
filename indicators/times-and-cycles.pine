@@ -136,10 +136,11 @@ find_bar_index_for_value(val, session_start, session_end) =>
 // === UTILITY: Plot level if not already used ===
 plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, show_label, offset) =>
     max_lookback = 1000
-    if array.indexof(used_levels, price) == -1 and not na(idx) and bar_index - idx <= max_lookback and idx >= 0
+    is_idx_in_buffer = idx >= 0 and idx <= bar_index and bar_index - idx <= max_lookback
+    if array.indexof(used_levels, price) == -1 and not na(idx) and is_idx_in_buffer
         array.push(used_levels, price)
         if show_line
-            line.new(idx, price, idx + 1, price, xloc.bar_index, extend.right, color, style, 1)
+            line.new(idx, price, bar_index, price, xloc.bar_index, extend.right, color, style, 1)
         if show_label
             label_style = yloc == yloc.abovebar ? label.style_label_down : label.style_label_up
             label.new(idx, price, label_text, xloc.bar_index, yloc, color, label_style, color.white, size.tiny)
