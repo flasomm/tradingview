@@ -170,9 +170,9 @@ if barstate.islast
             dlBar = array.get(dailyLowBars, 0)
             label_dh = "DH"
             label_dl = "DL"
-            if dhBar >= 0
+            if dhBar < bar_index and dhBar >= 0 and high != dh
                 plot_level(used_levels, dhBar, dh, color_daily, get_line_style(line_style_opt), label_dh, yloc.abovebar, true, show_labels)
-            if dlBar >= 0 and dlBar < bar_index
+            if dlBar < bar_index and dlBar >= 0 and low != dl
                 plot_level(used_levels, dlBar, dl, color_daily, get_line_style(line_style_opt), label_dl, yloc.belowbar, true, show_labels)
         array.clear(used_levels)
     else if is_daily
