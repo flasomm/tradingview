@@ -6,14 +6,15 @@ defaultColor = color.new(color.blue, 50)
 input_group_previous_high_low = "Previous High/Low"
 
 show_daily = input.bool(true, "Today", inline="vsettings", group=input_group_previous_high_low)
-color_daily = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
+color_daily = input.color(color.new(color.red, 50), "", inline="vsettings", group=input_group_previous_high_low)
 show_prev_daily = input.bool(true, "D", inline="vsettings", group=input_group_previous_high_low)
-color_prev_daily = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
+color_prev_daily = input.color(color.rgb(red = 231, green = 131, blue = 131, transp = 50), "", inline="vsettings", group=input_group_previous_high_low)
 show_prev_weekly = input.bool(true, "W", inline="vsettings", group=input_group_previous_high_low)
 color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
 
 // === DISPLAY ===
 show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
+show_lines = input.bool(true, "Show Lines", inline="showLabels", group="Previous High/Low")
 show_dates = input.bool(false, "Show Dates", inline="showLabels", group="Previous High/Low")
 
 // === HISTORY ===
@@ -129,7 +130,7 @@ plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, s
     is_idx_in_buffer = idx >= 0 and idx <= bar_index and rel_idx >= 0 and rel_idx <= max_lookback and not na(close[rel_idx])
     if array.indexof(used_levels, price) == -1 and not na(idx) and is_idx_in_buffer
         array.push(used_levels, price)
-        if show_line
+        if show_lines
             line.new(idx, price, bar_index, price, xloc.bar_index, extend.right, color, style, 1)
         if show_label
             label_style = yloc == yloc.abovebar ? label.style_label_down : label.style_label_up
