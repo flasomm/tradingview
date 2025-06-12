@@ -255,8 +255,26 @@ text_ny = input.string("NY", "", inline = "sessions_ny", group=sessions_group)
 color_ny = input.color(color.new(color.green, 50), "", inline="sessions_ny", group=sessions_group)
 ny_session = input.session("1300-2200", "", inline="sessions_ny", group=sessions_group)
 
+// Sydney
+show_sydney = input.bool(true, "", inline = "sessions_sydney", group=sessions_group, tooltip="")
+text_sydney = input.string("SYD", "", inline = "sessions_sydney", group=sessions_group, tooltip="")
+color_sydney = input.color(color.new(color.blue, 50), "", inline="sessions_sydney", group=sessions_group, tooltip="")
+sydney_session = input.session("2100-0600", "", inline="sessions_sydney", group=sessions_group)
+
+// Asia
+show_asia = input.bool(true, "", inline = "sessions_asia", group=sessions_group, tooltip="")
+text_asia = input.string("ASIA", "", inline = "sessions_asia", group=sessions_group, tooltip="")
+color_asia = input.color(color.new(color.purple, 50), "", inline="sessions_asia", group=sessions_group, tooltip="")
+asia_session = input.session("0000-0900", "", inline="sessions_asia", group=sessions_group)
+
+// TBD
+show_tbd = input.bool(false, "", inline = "sessions_tbd", group=sessions_group, tooltip="")
+text_tbd = input.string("TBD", "", inline = "sessions_tbd", group=sessions_group, tooltip="")
+color_tbd = input.color(color.new(color.purple, 50), "", inline="sessions_tbd", group=sessions_group, tooltip="")
+tbd_session = input.session("0900-1200", "", inline="sessions_tbd", group=sessions_group)
+
 sessions_border_style = input.string("dotted", "Blocks Border Style", options=["solid", "dashed", "dotted"], inline="sessions_settings", group=sessions_group)
-show_labels_sessions = input.bool(false, "Show Labels", inline="sessions_settings", group=sessions_group)
+show_labels_sessions = input.bool(true, "Show Labels", inline="sessions_settings", group=sessions_group)
 
 // === SESSION BOX UTILITY ===
 plot_session_box(show, session_label, color, session, border_style, show_label, prev_box, prev_label, prev_high, prev_low) =>
@@ -266,7 +284,11 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
     end_min    = int(str.tonumber(str.substring(session, 7, 9)))
     session_start = timestamp(sessions_tz, year, month, dayofmonth, start_hour, start_min)
     session_end   = timestamp(sessions_tz, year, month, dayofmonth, end_hour, end_min)
-    in_session = (time >= session_start and time < session_end)
+    var in_session = false
+    if start_hour < end_hour
+        in_session := (time >= session_start and time < session_end)
+    else
+        in_session := (time >= session_start or time < session_end)
     box_ = prev_box
     label_ = prev_label
     high_ = prev_high
@@ -283,7 +305,7 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
             if show_label and not na(box_)
                 label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
                 label_y = (high_ + low_) / 2
-                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 0), size=size.large)
+                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
         else if in_session
             high_ := na(high_) ? high : math.max(high_, high)
             low_ := na(low_) ? low : math.min(low_, low)
@@ -296,7 +318,7 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
                 label_y = (high_ + low_) / 2
                 if not na(label_)
                     label.delete(label_)
-                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 0), size=size.large)
+                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
         else if in_session[1] and not in_session
             box_ := na
             label_ := na
@@ -329,4 +351,37 @@ ny_box := ny_box_new
 ny_label := ny_label_new
 ny_high := ny_high_new
 ny_low := ny_low_new
+
+// === SYDNEY SESSION LOGIC ===
+var box sydney_box = na
+var label sydney_label = na
+var float sydney_high = na
+var float sydney_low = na
+[box_sydney_new, label_sydney_new, high_sydney_new, low_sydney_new] = plot_session_box(show_sydney, text_sydney, color_sydney, sydney_session, sessions_border_style, show_labels_sessions, sydney_box, sydney_label, sydney_high, sydney_low)
+sydney_box := box_sydney_new
+sydney_label := label_sydney_new
+sydney_high := high_sydney_new
+sydney_low := low_sydney_new
+
+// === ASIA SESSION LOGIC ===
+var box asia_box = na
+var label asia_label = na
+var float asia_high = na
+var float asia_low = na
+[box_asia_new, label_asia_new, high_asia_new, low_asia_new] = plot_session_box(show_asia, text_asia, color_asia, asia_session, sessions_border_style, show_labels_sessions, asia_box, asia_label, asia_high, asia_low)
+asia_box := box_asia_new
+asia_label := label_asia_new
+asia_high := high_asia_new
+asia_low := low_asia_new
+
+// === TBD SESSION LOGIC ===
+var box tbd_box = na
+var label tbd_label = na
+var float tbd_high = na
+var float tbd_low = na
+[box_tbd_new, label_tbd_new, high_tbd_new, low_tbd_new] = plot_session_box(show_tbd, text_tbd, color_tbd, tbd_session, sessions_border_style, show_labels_sessions, tbd_box, tbd_label, tbd_high, tbd_low)
+tbd_box := box_tbd_new
+tbd_label := label_tbd_new
+tbd_high := high_tbd_new
+tbd_low := low_tbd_new
 
