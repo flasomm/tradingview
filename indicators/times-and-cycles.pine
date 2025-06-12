@@ -130,7 +130,7 @@ plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, s
     is_idx_in_buffer = idx >= 0 and idx <= bar_index and rel_idx >= 0 and rel_idx <= max_lookback and not na(close[rel_idx])
     if array.indexof(used_levels, price) == -1 and not na(idx) and is_idx_in_buffer
         array.push(used_levels, price)
-        if show_lines
+        if show_line
             line.new(idx, price, bar_index, price, xloc.bar_index, extend.right, color, style, 1)
         if show_label
             label_style = yloc == yloc.abovebar ? label.style_label_down : label.style_label_up
@@ -149,9 +149,9 @@ plot_history_levels(used_levels, highs, highBars, lows, lowBars, color, style, l
         label_h = label_prefix + "H" + (i > 1 ? "-" + str.tostring(i) : "") + date_str
         label_l = label_prefix + "L" + (i > 1 ? "-" + str.tostring(i) : "") + date_str
         if hBar < bar_index
-            plot_level(used_levels, hBar, h, color, style, label_h, yloc_high, true, show_labels)
+            plot_level(used_levels, hBar, h, color, style, label_h, yloc_high, show_lines, show_labels)
         if lBar < bar_index
-            plot_level(used_levels, lBar, l, color, style, label_l, yloc_low, true, show_labels)
+            plot_level(used_levels, lBar, l, color, style, label_l, yloc_low, show_lines, show_labels)
 
 // === LEVELS AND LINES DISPLAY ===
 if barstate.islast
@@ -172,9 +172,9 @@ if barstate.islast
             label_dh = "DH"
             label_dl = "DL"
             if dhBar < bar_index and dhBar >= 0 and high != dh
-                plot_level(used_levels, dhBar, dh, color_daily, get_line_style(line_style_opt), label_dh, yloc.abovebar, true, show_labels)
+                plot_level(used_levels, dhBar, dh, color_daily, get_line_style(line_style_opt), label_dh, yloc.abovebar, show_lines, show_labels)
             if dlBar < bar_index and dlBar >= 0 and low != dl
-                plot_level(used_levels, dlBar, dl, color_daily, get_line_style(line_style_opt), label_dl, yloc.belowbar, true, show_labels)
+                plot_level(used_levels, dlBar, dl, color_daily, get_line_style(line_style_opt), label_dl, yloc.belowbar, show_lines, show_labels)
         array.clear(used_levels)
     else if is_daily
         float[] used_levels = array.new_float()
@@ -231,10 +231,102 @@ if is_new_1600
 if barstate.islast and is_intraday
     float[] used_levels_cycles = array.new_float()
     if show_cycle_00 and not na(cycle00Low) and not na(cycle00BarIdx)
-        plot_level(used_levels_cycles, cycle00BarIdx, cycle00Low, color_cycle_00, get_line_style(style_cycle_00), "00:00", yloc.belowbar, true, show_labels)
+        plot_level(used_levels_cycles, cycle00BarIdx, cycle00Low, color_cycle_00, get_line_style(style_cycle_00), "00:00", yloc.belowbar, show_lines, show_labels)
     if show_cycle_0930 and not na(cycle0930Low) and not na(cycle0930BarIdx)
-        plot_level(used_levels_cycles, cycle0930BarIdx, cycle0930Low, color_cycle_0930, get_line_style(style_cycle_0930), "09:30", yloc.belowbar, true, show_labels)
+        plot_level(used_levels_cycles, cycle0930BarIdx, cycle0930Low, color_cycle_0930, get_line_style(style_cycle_0930), "09:30", yloc.belowbar, show_lines, show_labels)
     if show_cycle_1530 and not na(cycle1530Low) and not na(cycle1530BarIdx)
-        plot_level(used_levels_cycles, cycle1530BarIdx, cycle1530Low, color_cycle_1530, get_line_style(style_cycle_1530), "15:30", yloc.belowbar, true, show_labels)
+        plot_level(used_levels_cycles, cycle1530BarIdx, cycle1530Low, color_cycle_1530, get_line_style(style_cycle_1530), "15:30", yloc.belowbar, show_lines, show_labels)
     if show_cycle_1600 and not na(cycle1600Low) and not na(cycle1600BarIdx)
-        plot_level(used_levels_cycles, cycle1600BarIdx, cycle1600Low, color_cycle_1600, get_line_style(style_cycle_1600), "16:00", yloc.belowbar, true, show_labels)
+        plot_level(used_levels_cycles, cycle1600BarIdx, cycle1600Low, color_cycle_1600, get_line_style(style_cycle_1600), "16:00", yloc.belowbar, show_lines, show_labels)
+
+// === SESSIONS ===
+sessions_group = "Sessions"
+sessions_tz = input.string("Europe/Paris", "Sessions Timezone", options=["America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Singapore", "Australia/Sydney"], group=sessions_group, tooltip="")
+
+// London
+show_london = input.bool(true, "", inline = "sessions_ldn", group=sessions_group, tooltip="")
+text_london = input.string("LDN", "", inline = "sessions_ldn", group=sessions_group, tooltip="")
+color_london = input.color(color.new(color.red, 50), "", inline="sessions_ldn", group=sessions_group, tooltip="")
+london_session = input.session("0700-1600", "", inline="sessions_ldn", group=sessions_group)
+
+// New York
+show_ny = input.bool(true, "", inline = "sessions_ny", group=sessions_group, tooltip="")
+text_ny = input.string("NY", "", inline = "sessions_ny", group=sessions_group)
+color_ny = input.color(color.new(color.green, 50), "", inline="sessions_ny", group=sessions_group)
+ny_session = input.session("1300-2200", "", inline="sessions_ny", group=sessions_group)
+
+sessions_border_style = input.string("dotted", "Blocks Border Style", options=["solid", "dashed", "dotted"], inline="sessions_settings", group=sessions_group)
+show_labels_sessions = input.bool(false, "Show Labels", inline="sessions_settings", group=sessions_group)
+
+// === SESSION BOX UTILITY ===
+plot_session_box(show, session_label, color, session, border_style, show_label, prev_box, prev_label, prev_high, prev_low) =>
+    start_hour = int(str.tonumber(str.substring(session, 0, 2)))
+    start_min  = int(str.tonumber(str.substring(session, 2, 4)))
+    end_hour   = int(str.tonumber(str.substring(session, 5, 7)))
+    end_min    = int(str.tonumber(str.substring(session, 7, 9)))
+    session_start = timestamp(sessions_tz, year, month, dayofmonth, start_hour, start_min)
+    session_end   = timestamp(sessions_tz, year, month, dayofmonth, end_hour, end_min)
+    in_session = (time >= session_start and time < session_end)
+    box_ = prev_box
+    label_ = prev_label
+    high_ = prev_high
+    low_ = prev_low
+    if show
+        if not in_session[1] and in_session
+            high_ := high
+            low_ := low
+            if not na(box_)
+                box.delete(box_)
+            if not na(label_)
+                label.delete(label_)
+            box_ := box.new(left=bar_index, top=high, right=bar_index, bottom=low, bgcolor=color.new(color, 80), border_color=color.new(color, 0), border_style=get_line_style(border_style))
+            if show_label and not na(box_)
+                label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
+                label_y = (high_ + low_) / 2
+                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 0), size=size.large)
+        else if in_session
+            high_ := na(high_) ? high : math.max(high_, high)
+            low_ := na(low_) ? low : math.min(low_, low)
+            if not na(box_)
+                box.set_right(box_, bar_index)
+                box.set_top(box_, high_)
+                box.set_bottom(box_, low_)
+            if show_label and not na(box_)
+                label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
+                label_y = (high_ + low_) / 2
+                if not na(label_)
+                    label.delete(label_)
+                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 0), size=size.large)
+        else if in_session[1] and not in_session
+            box_ := na
+            label_ := na
+            high_ := na
+            low_ := na
+    [box_, label_, high_, low_]
+
+// === LONDON SESSION LOGIC ===
+var box london_box = na
+var label london_label = na
+var float london_high = na
+var float london_low = na
+
+[box_new, label_new, high_new, low_new] = plot_session_box(show_london, text_london, color_london, london_session, sessions_border_style, show_labels_sessions, london_box, london_label, london_high, london_low)
+
+london_box := box_new
+london_label := label_new
+london_high := high_new
+london_low := low_new
+
+// === NEW YORK SESSION LOGIC ===
+var box ny_box = na
+var label ny_label = na
+var float ny_high = na
+var float ny_low = na
+
+[ny_box_new, ny_label_new, ny_high_new, ny_low_new] = plot_session_box(show_ny, text_ny, color_ny, ny_session, sessions_border_style, show_labels_sessions, ny_box, ny_label, ny_high, ny_low)
+
+ny_box := ny_box_new
+ny_label := ny_label_new
+ny_high := ny_high_new
+ny_low := ny_low_new
+
