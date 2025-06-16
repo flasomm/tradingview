@@ -286,12 +286,34 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
     end_hour   = int(str.tonumber(str.substring(session, 5, 7)))
     end_min    = int(str.tonumber(str.substring(session, 7, 9)))
 
-    // Get current time in chart timezone
-    current_hour = hour
-    current_min = minute
+    // Convert UTC time to selected timezone
+    t = time
+    year_ = year(t)
+    month_ = month(t)
+    day_ = dayofmonth(t)
+    hour_ = hour(t)
+    minute_ = minute(t)
+
+    // Get timezone offset in hours
+    tz_offset = switch sessions_tz
+        "America/New_York" => -4
+        "America/Chicago" => -5
+        "America/Los_Angeles" => -7
+        "Europe/London" => 1
+        "Europe/Paris" => 2
+        "Europe/Berlin" => 2
+        "Asia/Tokyo" => 9
+        "Asia/Hong_Kong" => 8
+        "Asia/Shanghai" => 8
+        "Asia/Singapore" => 8
+        "Australia/Sydney" => 10
+        => 0  // Default to UTC
+
+    // Convert to local time
+    local_hour = (hour_ + tz_offset + 24) % 24
 
     // Calculate current time in minutes since midnight
-    current_time_minutes = current_hour * 60 + current_min
+    current_time_minutes = local_hour * 60 + minute_
     session_start_minutes = start_hour * 60 + start_min
     session_end_minutes = end_hour * 60 + end_min
 
