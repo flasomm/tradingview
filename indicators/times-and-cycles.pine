@@ -1,28 +1,31 @@
 //@version=6
 indicator("[FS] Time & Cycles", overlay=true, max_bars_back=5000)
 
+
 // === PREVIOUS HIGH/LOW ===
 defaultColor = color.new(color.blue, 50)
 input_group_previous_high_low = "Previous High/Low"
 
-show_daily = input.bool(true, "Today", inline="vsettings", group=input_group_previous_high_low)
-color_daily = input.color(color.new(color.red, 50), "", inline="vsettings", group=input_group_previous_high_low)
-show_prev_daily = input.bool(true, "D", inline="vsettings", group=input_group_previous_high_low)
-color_prev_daily = input.color(color.rgb(red = 231, green = 131, blue = 131, transp = 50), "", inline="vsettings", group=input_group_previous_high_low)
-show_prev_weekly = input.bool(true, "W", inline="vsettings", group=input_group_previous_high_low)
-color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low)
+display = display.all - display.status_line
+
+show_daily = input.bool(true, "Today", inline="vsettings", group=input_group_previous_high_low, display=display)
+color_daily = input.color(color.new(color.red, 50), "", inline="vsettings", group=input_group_previous_high_low, display=display)
+show_prev_daily = input.bool(true, "D", inline="vsettings", group=input_group_previous_high_low, display=display)
+color_prev_daily = input.color(color.rgb(red = 231, green = 131, blue = 131, transp = 50), "", inline="vsettings", group=input_group_previous_high_low, display=display)
+show_prev_weekly = input.bool(true, "W", inline="vsettings", group=input_group_previous_high_low, display=display)
+color_prev_weekly = input.color(defaultColor, "", inline="vsettings", group=input_group_previous_high_low, display=display)
 
 // === DISPLAY ===
-show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low")
-show_lines = input.bool(true, "Show Lines", inline="showLabels", group="Previous High/Low")
-show_dates = input.bool(false, "Show Dates", inline="showLabels", group="Previous High/Low")
+show_labels = input.bool(true, "Show Labels", inline="showLabels", group="Previous High/Low", display=display)
+show_lines = input.bool(true, "Show Lines", inline="showLabels", group="Previous High/Low", display=display)
+show_dates = input.bool(false, "Show Dates", inline="showLabels", group="Previous High/Low", display=display)
 
 // === HISTORY ===
-historyLevels_daily = input.int(5, "History Levels (PDL/PDH)", minval=1, maxval=10, group="Previous High/Low")
-historyLevels_weekly = input.int(3, "History Levels (PWL/PWH)", minval=1, maxval=10, group="Previous High/Low")
+historyLevels_daily = input.int(5, "History Levels (PDL/PDH)", minval=1, maxval=10, group="Previous High/Low", display=display)
+historyLevels_weekly = input.int(3, "History Levels (PWL/PWH)", minval=1, maxval=10, group="Previous High/Low", display=display)
 
 // === STYLE ===
-line_style_opt = input.string("solid", "Line Style", options=["solid", "dashed", "dotted"], group="Previous High/Low")
+line_style_opt = input.string("solid", "Line Style", options=["solid", "dashed", "dotted"], group="Previous High/Low", display=display)
 
 // === TIMEFRAME DETECTION ===
 is_intraday = (timeframe.isminutes and timeframe.multiplier <= 240) or timeframe.isseconds or (timeframe.isintraday and timeframe.multiplier <= 240)
@@ -185,21 +188,21 @@ if barstate.islast
 // === DAILY CYCLES ===
 input_group_daily_cycles = "Daily Cycles"
 
-show_cycle_00 = input.bool(true, "00:00", inline="dailycicle0000", group=input_group_daily_cycles)
-color_cycle_00 = input.color(color.new(color.purple, 0), "", inline="dailycicle0000", group=input_group_daily_cycles)
-style_cycle_00 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0000", group=input_group_daily_cycles)
+show_cycle_00 = input.bool(true, "00:00", inline="dailycicle0000", group=input_group_daily_cycles, display=display)
+color_cycle_00 = input.color(color.new(color.purple, 0), "", inline="dailycicle0000", group=input_group_daily_cycles, display=display)
+style_cycle_00 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0000", group=input_group_daily_cycles, display=display)
 
-show_cycle_0930 = input.bool(false, "09:30", inline="dailycicle0930", group=input_group_daily_cycles)
-color_cycle_0930 = input.color(defaultColor, "", inline="dailycicle0930", group=input_group_daily_cycles)
-style_cycle_0930 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0930", group=input_group_daily_cycles)
+show_cycle_0930 = input.bool(false, "09:30", inline="dailycicle0930", group=input_group_daily_cycles, display=display)
+color_cycle_0930 = input.color(defaultColor, "", inline="dailycicle0930", group=input_group_daily_cycles, display=display)
+style_cycle_0930 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle0930", group=input_group_daily_cycles, display=display)
 
-show_cycle_1530 = input.bool(false, "15:30", inline="dailycicle1530", group=input_group_daily_cycles)
-color_cycle_1530 = input.color(defaultColor, "", inline="dailycicle1530", group=input_group_daily_cycles)
-style_cycle_1530 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1530", group=input_group_daily_cycles)
+show_cycle_1530 = input.bool(false, "15:30", inline="dailycicle1530", group=input_group_daily_cycles, display=display)
+color_cycle_1530 = input.color(defaultColor, "", inline="dailycicle1530", group=input_group_daily_cycles, display=display)
+style_cycle_1530 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1530", group=input_group_daily_cycles, display=display)
 
-show_cycle_1600 = input.bool(false, "16:00", inline="dailycicle1600", group=input_group_daily_cycles)
-color_cycle_1600 = input.color(defaultColor, "", inline="dailycicle1600", group=input_group_daily_cycles)
-style_cycle_1600 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1600", group=input_group_daily_cycles)
+show_cycle_1600 = input.bool(false, "16:00", inline="dailycicle1600", group=input_group_daily_cycles, display=display)
+color_cycle_1600 = input.color(defaultColor, "", inline="dailycicle1600", group=input_group_daily_cycles, display=display)
+style_cycle_1600 = input.string("dashed", "", options=["solid", "dashed", "dotted"], inline="dailycicle1600", group=input_group_daily_cycles, display=display)
 
 var float cycle00Low = na
 var int cycle00BarIdx = na
@@ -241,40 +244,40 @@ if barstate.islast and is_intraday
 
 // === SESSIONS ===
 sessions_group = "Sessions"
-sessions_tz = input.string("Europe/Paris", "Sessions Timezone", options=["America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Singapore", "Australia/Sydney"], group=sessions_group, tooltip="")
+sessions_tz = input.string("Europe/Paris", "Sessions Timezone", options=["America/New_York", "America/Chicago", "America/Los_Angeles", "Europe/London", "Europe/Paris", "Europe/Berlin", "Asia/Tokyo", "Asia/Hong_Kong", "Asia/Shanghai", "Asia/Singapore", "Australia/Sydney"], group=sessions_group, tooltip="", display=display)
 
 // London
-show_london = input.bool(true, "", inline = "sessions_ldn", group=sessions_group, tooltip="")
-text_london = input.string("LDN", "", inline = "sessions_ldn", group=sessions_group, tooltip="")
-color_london = input.color(color.new(color.red, 50), "", inline="sessions_ldn", group=sessions_group, tooltip="")
-london_session = input.session("0700-1600", "", inline="sessions_ldn", group=sessions_group)
+show_london = input.bool(true, "", inline = "sessions_ldn", group=sessions_group, tooltip="", display=display)
+text_london = input.string("LDN", "", inline = "sessions_ldn", group=sessions_group, tooltip="", display=display)
+color_london = input.color(color.new(color.red, 50), "", inline="sessions_ldn", group=sessions_group, tooltip="", display=display)
+london_session = input.session("0700-1600", "", inline="sessions_ldn", group=sessions_group, display=display)
 
 // New York
-show_ny = input.bool(true, "", inline = "sessions_ny", group=sessions_group, tooltip="")
-text_ny = input.string("NY", "", inline = "sessions_ny", group=sessions_group)
-color_ny = input.color(color.new(color.green, 50), "", inline="sessions_ny", group=sessions_group)
-ny_session = input.session("1300-2200", "", inline="sessions_ny", group=sessions_group)
+show_ny = input.bool(true, "", inline = "sessions_ny", group=sessions_group, tooltip="", display=display)
+text_ny = input.string("NY", "", inline = "sessions_ny", group=sessions_group, tooltip="", display=display)
+color_ny = input.color(color.new(color.green, 50), "", inline="sessions_ny", group=sessions_group, tooltip="", display=display)
+ny_session = input.session("1300-2200", "", inline="sessions_ny", group=sessions_group, display=display)
 
 // Sydney
-show_sydney = input.bool(true, "", inline = "sessions_sydney", group=sessions_group, tooltip="")
-text_sydney = input.string("SYD", "", inline = "sessions_sydney", group=sessions_group, tooltip="")
-color_sydney = input.color(color.new(color.blue, 50), "", inline="sessions_sydney", group=sessions_group, tooltip="")
-sydney_session = input.session("2100-0600", "", inline="sessions_sydney", group=sessions_group)
+show_sydney = input.bool(true, "", inline = "sessions_sydney", group=sessions_group, tooltip="", display=display)
+text_sydney = input.string("SYD", "", inline = "sessions_sydney", group=sessions_group, tooltip="", display=display)
+color_sydney = input.color(color.new(color.blue, 50), "", inline="sessions_sydney", group=sessions_group, tooltip="", display=display)
+sydney_session = input.session("2100-0600", "", inline="sessions_sydney", group=sessions_group, display=display)
 
 // Asia
-show_asia = input.bool(true, "", inline = "sessions_asia", group=sessions_group, tooltip="")
-text_asia = input.string("ASIA", "", inline = "sessions_asia", group=sessions_group, tooltip="")
-color_asia = input.color(color.new(color.purple, 50), "", inline="sessions_asia", group=sessions_group, tooltip="")
-asia_session = input.session("0000-0900", "", inline="sessions_asia", group=sessions_group)
+show_asia = input.bool(true, "", inline = "sessions_asia", group=sessions_group, tooltip="", display=display)
+text_asia = input.string("ASIA", "", inline = "sessions_asia", group=sessions_group, tooltip="", display=display)
+color_asia = input.color(color.new(color.purple, 50), "", inline="sessions_asia", group=sessions_group, tooltip="", display=display)
+asia_session = input.session("0000-0900", "", inline="sessions_asia", group=sessions_group, display=display)
 
 // TBD
-show_tbd = input.bool(false, "", inline = "sessions_tbd", group=sessions_group, tooltip="")
-text_tbd = input.string("TBD", "", inline = "sessions_tbd", group=sessions_group, tooltip="")
-color_tbd = input.color(color.new(color.purple, 50), "", inline="sessions_tbd", group=sessions_group, tooltip="")
-tbd_session = input.session("0900-1200", "", inline="sessions_tbd", group=sessions_group)
+show_tbd = input.bool(false, "", inline = "sessions_tbd", group=sessions_group, tooltip="", display=display)
+text_tbd = input.string("TBD", "", inline = "sessions_tbd", group=sessions_group, tooltip="", display=display)
+color_tbd = input.color(color.new(color.purple, 50), "", inline="sessions_tbd", group=sessions_group, tooltip="", display=display)
+tbd_session = input.session("0900-1200", "", inline="sessions_tbd", group=sessions_group, display=display)
 
-sessions_border_style = input.string("dotted", "Blocks Border Style", options=["solid", "dashed", "dotted"], inline="sessions_settings", group=sessions_group)
-show_labels_sessions = input.bool(true, "Show Labels", inline="sessions_settings", group=sessions_group)
+sessions_border_style = input.string("dotted", "Blocks Border Style", options=["solid", "dashed", "dotted"], inline="sessions_settings", group=sessions_group, display=display)
+show_labels_sessions = input.bool(true, "Show Labels", inline="sessions_settings", group=sessions_group, display=display)
 
 // === SESSION BOX UTILITY ===
 plot_session_box(show, session_label, color, session, border_style, show_label, prev_box, prev_label, prev_high, prev_low) =>
@@ -282,31 +285,46 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
     start_min  = int(str.tonumber(str.substring(session, 2, 4)))
     end_hour   = int(str.tonumber(str.substring(session, 5, 7)))
     end_min    = int(str.tonumber(str.substring(session, 7, 9)))
-    session_start = timestamp(sessions_tz, year, month, dayofmonth, start_hour, start_min)
-    session_end   = timestamp(sessions_tz, year, month, dayofmonth, end_hour, end_min)
+
+    // Get current time in chart timezone
+    current_hour = hour
+    current_min = minute
+
+    // Calculate current time in minutes since midnight
+    current_time_minutes = current_hour * 60 + current_min
+    session_start_minutes = start_hour * 60 + start_min
+    session_end_minutes = end_hour * 60 + end_min
+
+    // Handle sessions that cross midnight
     var in_session = false
-    if start_hour < end_hour
-        in_session := (time >= session_start and time < session_end)
+    if session_start_minutes < session_end_minutes
+        in_session := current_time_minutes >= session_start_minutes and current_time_minutes < session_end_minutes
     else
-        in_session := (time >= session_start or time < session_end)
+        in_session := current_time_minutes >= session_start_minutes or current_time_minutes < session_end_minutes
+
     box_ = prev_box
     label_ = prev_label
     high_ = prev_high
     low_ = prev_low
+
     if show
         if not in_session[1] and in_session
+            // Start of new session
             high_ := high
             low_ := low
             if not na(box_)
                 box.delete(box_)
-            if not na(label_)
-                label.delete(label_)
-            box_ := box.new(left=bar_index, top=high, right=bar_index, bottom=low, bgcolor=color.new(color, 80), border_color=color.new(color, 0), border_style=get_line_style(border_style))
-            if show_label and not na(box_)
+            box_ := box.new(bar_index, high_, bar_index, low_, bgcolor=color.new(color, 90), border_color=color, border_style=get_line_style(border_style))
+            if show_label
                 label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
                 label_y = (high_ + low_) / 2
-                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
+                if na(label_)
+                    label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
+                else
+                    label.set_x(label_, label_x)
+                    label.set_y(label_, label_y)
         else if in_session
+            // During session
             high_ := na(high_) ? high : math.max(high_, high)
             low_ := na(low_) ? low : math.min(low_, low)
             if not na(box_)
@@ -316,10 +334,22 @@ plot_session_box(show, session_label, color, session, border_style, show_label, 
             if show_label and not na(box_)
                 label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
                 label_y = (high_ + low_) / 2
-                if not na(label_)
-                    label.delete(label_)
-                label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
+                if na(label_)
+                    label_ := label.new(x=label_x, y=label_y, text=session_label, xloc=xloc.bar_index, yloc=yloc.price, color=na, style=label.style_label_center, textcolor=color.new(color, 50), size=size.large)
+                else
+                    label.set_x(label_, label_x)
+                    label.set_y(label_, label_y)
         else if in_session[1] and not in_session
+            // End of session
+            if not na(box_)
+                box.set_right(box_, bar_index)
+                box.set_top(box_, high_)
+                box.set_bottom(box_, low_)
+            if not na(label_)
+                label_x = math.round((box.get_left(box_) + box.get_right(box_)) / 2)
+                label_y = (high_ + low_) / 2
+                label.set_x(label_, label_x)
+                label.set_y(label_, label_y)
             box_ := na
             label_ := na
             high_ := na
@@ -357,31 +387,36 @@ var box sydney_box = na
 var label sydney_label = na
 var float sydney_high = na
 var float sydney_low = na
-[box_sydney_new, label_sydney_new, high_sydney_new, low_sydney_new] = plot_session_box(show_sydney, text_sydney, color_sydney, sydney_session, sessions_border_style, show_labels_sessions, sydney_box, sydney_label, sydney_high, sydney_low)
-sydney_box := box_sydney_new
-sydney_label := label_sydney_new
-sydney_high := high_sydney_new
-sydney_low := low_sydney_new
+
+[sydney_box_new, sydney_label_new, sydney_high_new, sydney_low_new] = plot_session_box(show_sydney, text_sydney, color_sydney, sydney_session, sessions_border_style, show_labels_sessions, sydney_box, sydney_label, sydney_high, sydney_low)
+
+sydney_box := sydney_box_new
+sydney_label := sydney_label_new
+sydney_high := sydney_high_new
+sydney_low := sydney_low_new
 
 // === ASIA SESSION LOGIC ===
 var box asia_box = na
 var label asia_label = na
 var float asia_high = na
 var float asia_low = na
-[box_asia_new, label_asia_new, high_asia_new, low_asia_new] = plot_session_box(show_asia, text_asia, color_asia, asia_session, sessions_border_style, show_labels_sessions, asia_box, asia_label, asia_high, asia_low)
-asia_box := box_asia_new
-asia_label := label_asia_new
-asia_high := high_asia_new
-asia_low := low_asia_new
+
+[asia_box_new, asia_label_new, asia_high_new, asia_low_new] = plot_session_box(show_asia, text_asia, color_asia, asia_session, sessions_border_style, show_labels_sessions, asia_box, asia_label, asia_high, asia_low)
+
+asia_box := asia_box_new
+asia_label := asia_label_new
+asia_high := asia_high_new
+asia_low := asia_low_new
 
 // === TBD SESSION LOGIC ===
 var box tbd_box = na
 var label tbd_label = na
 var float tbd_high = na
 var float tbd_low = na
-[box_tbd_new, label_tbd_new, high_tbd_new, low_tbd_new] = plot_session_box(show_tbd, text_tbd, color_tbd, tbd_session, sessions_border_style, show_labels_sessions, tbd_box, tbd_label, tbd_high, tbd_low)
-tbd_box := box_tbd_new
-tbd_label := label_tbd_new
-tbd_high := high_tbd_new
-tbd_low := low_tbd_new
 
+[tbd_box_new, tbd_label_new, tbd_high_new, tbd_low_new] = plot_session_box(show_tbd, text_tbd, color_tbd, tbd_session, sessions_border_style, show_labels_sessions, tbd_box, tbd_label, tbd_high, tbd_low)
+
+tbd_box := tbd_box_new
+tbd_label := tbd_label_new
+tbd_high := tbd_high_new
+tbd_low := tbd_low_new
