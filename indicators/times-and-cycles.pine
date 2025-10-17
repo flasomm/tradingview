@@ -10,6 +10,8 @@ display = display.all - display.status_line
 
 show_daily = input.bool(true, "Today", inline="vsettings", group=input_group_previous_high_low, display=display)
 color_daily = input.color(color.new(color.red, 50), "", inline="vsettings", group=input_group_previous_high_low, display=display)
+show_this_week = input.bool(true, "This Week", inline="vsettings", group=input_group_previous_high_low, display=display)
+color_this_week = input.color(color.new(color.orange, 50), "", inline="vsettings", group=input_group_previous_high_low, display=display)
 show_prev_daily = input.bool(true, "D", inline="vsettings", group=input_group_previous_high_low, display=display)
 color_prev_daily = input.color(color.rgb(red = 231, green = 131, blue = 131, transp = 50), "", inline="vsettings", group=input_group_previous_high_low, display=display)
 show_prev_weekly = input.bool(true, "W", inline="vsettings", group=input_group_previous_high_low, display=display)
@@ -63,6 +65,12 @@ if bar_index == 0
     array.unshift(weeklyLows, low)
     array.unshift(weeklyLowBars, bar_index)
     array.unshift(weeklyTimes, time)
+    // Initialize current week variables
+    currWeekHigh := high
+    currWeekLow := low
+    currWeekHighBar := bar_index
+    currWeekLowBar := bar_index
+    currWeekTime := time
 
 is_new_day = ta.change(time("D")) != 0
 is_new_week = ta.change(time("W")) != 0
@@ -100,6 +108,7 @@ if is_new_week
     currWeekLowBar := bar_index
     currWeekTime := time
 else
+    // Always update current week high/low if not initialized or if new extremes
     if na(currWeekHigh) or high > currWeekHigh
         currWeekHigh := high
         currWeekHighBar := bar_index
@@ -128,13 +137,12 @@ format_date(ts) =>
 
 // === UTILITY: Plot level if not already used ===
 plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, show_label) =>
-    max_lookback = 5000
-    rel_idx = bar_index - idx
-    is_idx_in_buffer = idx >= 0 and idx <= bar_index and rel_idx >= 0 and rel_idx <= max_lookback and not na(close[rel_idx])
-    if array.indexof(used_levels, price) == -1 and not na(idx) and is_idx_in_buffer
+    if array.indexof(used_levels, price) == -1 and not na(idx) and idx >= 0
         array.push(used_levels, price)
         if show_line
-            line.new(idx, price, bar_index, price, xloc.bar_index, extend.right, color, style, 1)
+            // Create horizontal line extending to the right from the origin point
+            line_end = idx == bar_index ? bar_index + 10 : bar_index
+            line.new(idx, price, line_end, price, xloc.bar_index, extend.right, color, style, 1)
         if show_label
             label_style = yloc == yloc.abovebar ? label.style_label_down : label.style_label_up
             label.new(idx, price, label_text, xloc.bar_index, yloc, color, label_style, color.white, size.tiny)
@@ -142,15 +150,15 @@ plot_level(used_levels, idx, price, color, style, label_text, yloc, show_line, s
 // === Utility function to plot historical levels (high/low) with optional date ===
 plot_history_levels(used_levels, highs, highBars, lows, lowBars, color, style, label_prefix, show_labels, yloc_high, yloc_low, max_levels, show_dates, times) =>
     max_idx = math.min(max_levels, array.size(highs) - 1, array.size(highBars) - 1, array.size(lows) - 1, array.size(lowBars) - 1, array.size(times) - 1)
-    for i = 1 to max_idx
+    for i = 0 to max_idx
         h = array.get(highs, i)
         hBar = array.get(highBars, i)
         l = array.get(lows, i)
         lBar = array.get(lowBars, i)
         t = array.get(times, i)
         date_str = show_dates ? " (" + format_date(t) + ")" : ""
-        label_h = label_prefix + "H" + (i > 1 ? "-" + str.tostring(i) : "") + date_str
-        label_l = label_prefix + "L" + (i > 1 ? "-" + str.tostring(i) : "") + date_str
+        label_h = label_prefix + "H" + (i > 0 ? "-" + str.tostring(i + 1) : "") + date_str
+        label_l = label_prefix + "L" + (i > 0 ? "-" + str.tostring(i + 1) : "") + date_str
         if hBar < bar_index
             plot_level(used_levels, hBar, h, color, style, label_h, yloc_high, show_lines, show_labels)
         if lBar < bar_index
@@ -160,13 +168,13 @@ plot_history_levels(used_levels, highs, highBars, lows, lowBars, color, style, l
 if barstate.islast
     float[] used_levels = array.new_float()
     if is_intraday
-        // --- Weekly High/Low historiques (PWH/PWL) ---
+        // --- Historical Weekly High/Low (PWH/PWL) ---
         if show_prev_weekly and array.size(weeklyHighs) > 1 and array.size(weeklyHighBars) > 1 and array.size(weeklyLows) > 1 and array.size(weeklyLowBars) > 1
             plot_history_levels(used_levels, weeklyHighs, weeklyHighBars, weeklyLows, weeklyLowBars, color_prev_weekly, get_line_style(line_style_opt), "PW", show_labels, yloc.abovebar, yloc.belowbar, historyLevels_weekly, show_dates, weeklyTimes)
-        // --- Daily High/Low historiques (PDH/PDL) ---
+        // --- Historical Daily High/Low (PDH/PDL) ---
         if show_prev_daily and array.size(dailyHighs) > 1 and array.size(dailyHighBars) > 1 and array.size(dailyLows) > 1 and array.size(dailyLowBars) > 1 and array.size(dailyTimes) > 1
             plot_history_levels(used_levels, dailyHighs, dailyHighBars, dailyLows, dailyLowBars, color_prev_daily, get_line_style(line_style_opt), "PD", show_labels, yloc.abovebar, yloc.belowbar, historyLevels_daily, show_dates, dailyTimes)
-        // --- Daily High/Low du jour courant (DH/DL) ---
+        // --- Current Day High/Low (DH/DL) ---
         if show_daily and array.size(dailyHighs) > 0 and array.size(dailyHighBars) > 0
             dh = array.get(dailyHighs, 0)
             dhBar = array.get(dailyHighBars, 0)
@@ -178,11 +186,29 @@ if barstate.islast
                 plot_level(used_levels, dhBar, dh, color_daily, get_line_style(line_style_opt), label_dh, yloc.abovebar, show_lines, show_labels)
             if dlBar < bar_index and dlBar >= 0 and low != dl
                 plot_level(used_levels, dlBar, dl, color_daily, get_line_style(line_style_opt), label_dl, yloc.belowbar, show_lines, show_labels)
+        
+        // --- Current Week High/Low (WH/WL) ---
+        if show_this_week and not na(currWeekHigh) and not na(currWeekLow) and not na(currWeekHighBar) and not na(currWeekLowBar)
+            label_wh = "WH"
+            label_wl = "WL"
+            if currWeekHighBar >= 0
+                plot_level(used_levels, currWeekHighBar, currWeekHigh, color_this_week, get_line_style(line_style_opt), label_wh, yloc.abovebar, show_lines, show_labels)
+            if currWeekLowBar >= 0
+                plot_level(used_levels, currWeekLowBar, currWeekLow, color_this_week, get_line_style(line_style_opt), label_wl, yloc.belowbar, show_lines, show_labels)
         array.clear(used_levels)
     else if is_daily
         float[] used_levels = array.new_float()
         if show_prev_weekly and array.size(weeklyHighs) > 1 and array.size(weeklyHighBars) > 1 and array.size(weeklyLows) > 1 and array.size(weeklyLowBars) > 1
             plot_history_levels(used_levels, weeklyHighs, weeklyHighBars, weeklyLows, weeklyLowBars, color_prev_weekly, get_line_style(line_style_opt), "PW", show_labels, yloc.abovebar, yloc.belowbar, historyLevels_weekly, show_dates, weeklyTimes)
+
+        // --- Current Week High/Low (WH/WL) for daily timeframe ---
+        if show_this_week and not na(currWeekHigh) and not na(currWeekLow) and not na(currWeekHighBar) and not na(currWeekLowBar)
+            label_wh = "WH"
+            label_wl = "WL"
+            if currWeekHighBar >= 0
+                plot_level(used_levels, currWeekHighBar, currWeekHigh, color_this_week, get_line_style(line_style_opt), label_wh, yloc.abovebar, show_lines, show_labels)
+            if currWeekLowBar >= 0
+                plot_level(used_levels, currWeekLowBar, currWeekLow, color_this_week, get_line_style(line_style_opt), label_wl, yloc.belowbar, show_lines, show_labels)
         array.clear(used_levels)
 
 // === DAILY CYCLES ===
