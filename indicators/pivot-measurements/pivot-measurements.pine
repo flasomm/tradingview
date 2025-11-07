@@ -1,0 +1,323 @@
+//@version=6
+indicator("[FS] Pivot Measurements", overlay=true, max_bars_back=5000)
+
+pivot_length = input.int(50, "Pivot Length", minval=1, group="Pivot Detection")
+
+show_reg = input.bool(true, "Regular Pivots", inline="inline1", group="Pivot Detection")
+reg_ph_css = input.color(#ef5350, "High", inline="inline1", group="Pivot Detection")
+reg_pl_css = input.color(#26a69a, "Low", inline="inline1", group="Pivot Detection")
+
+show_miss = input.bool(true, "Missed Pivots", inline="inline2", group="Pivot Detection")
+miss_ph_css = input.color(#ef5350, "High", inline="inline2", group="Pivot Detection")
+miss_pl_css = input.color(#26a69a, "Low", inline="inline2", group="Pivot Detection")
+
+max_measurements = input.int(10, "Number of Measurements", minval=1, maxval=10, group="Measurements")
+show_boxes = input.bool(true, "Show Measurement Boxes", group="Measurements")
+box_transparency = input.int(90, "Box Transparency", minval=0, maxval=100, group="Measurements")
+border_transparency = input.int(50, "Border Transparency", minval=0, maxval=100, group="Measurements")
+label_bg_transparency = input.int(30, "Label Background Transparency", minval=0, maxval=100, group="Measurements")
+label_size = input.string("small", "Label Size", options=["tiny", "small", "normal", "large"], group="Measurements")
+
+type Measurement
+    int start_bar
+    float start_price
+    int end_bar
+    float end_price
+    bool is_upward
+    int duration_bars
+    float price_change
+    float price_change_pct
+    float volume_total
+
+type Pivot
+    int bar
+    float price
+    bool is_high
+
+var Pivot[] pivots = array.new<Pivot>()
+var Measurement[] measurements = array.new<Measurement>()
+var line zigzag = na
+var line ghost_level = na
+var float max = 0.0
+var float min = 0.0
+var int max_x1 = 0
+var int min_x1 = 0
+var float follow_max = 0.0
+var int follow_max_x1 = 0
+var float follow_min = 0.0
+var int follow_min_x1 = 0
+var int os = 0
+var float py1 = 0.0
+var int px1 = 0
+
+add_pivot_and_label(bar_idx, price_val, is_high_pivot, is_missed) =>
+    new_pivot = Pivot.new(bar_idx, price_val, is_high_pivot)
+    array.push(pivots, new_pivot)
+    
+    label_color = is_missed ? (is_high_pivot ? miss_ph_css : miss_pl_css) : (is_high_pivot ? reg_ph_css : reg_pl_css)
+    label_text = is_missed ? "👻" : (is_high_pivot ? "▼" : "▲")
+    label_style = is_high_pivot ? label.style_label_down : label.style_label_up
+    
+    label.new(bar_idx, price_val, label_text, xloc=xloc.bar_index, yloc=yloc.price, color=label_color, style=label_style, textcolor=color.white, size=size.small, tooltip=str.tostring(price_val, "#.####"))
+
+create_zigzag_line(x1, y1, x2, y2, line_color, line_style) =>
+    line.new(x1, y1, x2, y2, color=line_color, style=line_style)
+
+create_ghost_level(x, y, pivot_color) =>
+    line.new(x, y, x, y, color=color.new(pivot_color, 50), width=2)
+
+update_ghost_level(x) =>
+    line.set_x2(ghost_level[1], x)
+
+n = bar_index
+ph = ta.pivothigh(pivot_length, pivot_length)
+pl = ta.pivotlow(pivot_length, pivot_length)
+
+max := math.max(high[pivot_length], max)
+min := math.min(low[pivot_length], min)
+follow_max := math.max(high[pivot_length], follow_max)
+follow_min := math.min(low[pivot_length], follow_min)
+
+if max > max[1]
+    max_x1 := n - pivot_length
+    follow_min := low[pivot_length]
+if min < min[1]
+    min_x1 := n - pivot_length
+    follow_max := high[pivot_length]
+
+if follow_min < follow_min[1]
+    follow_min_x1 := n - pivot_length
+if follow_max > follow_max[1]
+    follow_max_x1 := n - pivot_length
+
+update_ghost_level(n)
+
+if not na(ph)
+    pivot_bar = n - pivot_length
+    
+    if show_miss
+        if os[1] == 1 and min_x1 > 0
+            add_pivot_and_label(min_x1, min, false, true)
+            zigzag := create_zigzag_line(px1, py1, min_x1, min, miss_ph_css, line.style_dashed)
+            px1 := min_x1
+            py1 := min
+            update_ghost_level(px1)
+            ghost_level := create_ghost_level(px1, py1, reg_pl_css)
+        else if ph < max
+            if max_x1 > 0
+                add_pivot_and_label(max_x1, max, true, true)
+                zigzag := create_zigzag_line(px1, py1, max_x1, max, miss_pl_css, line.style_dashed)
+                px1 := max_x1
+                py1 := max
+                update_ghost_level(px1)
+                ghost_level := create_ghost_level(px1, py1, reg_ph_css)
+            if follow_min_x1 > 0
+                add_pivot_and_label(follow_min_x1, follow_min, false, true)
+                zigzag := create_zigzag_line(px1, py1, follow_min_x1, follow_min, miss_ph_css, line.style_dashed)
+                px1 := follow_min_x1
+                py1 := follow_min
+                update_ghost_level(px1)
+                ghost_level := create_ghost_level(px1, py1, reg_pl_css)
+    
+    if show_reg
+        add_pivot_and_label(pivot_bar, ph, true, false)
+        zigzag_style = ph < max or os[1] == 1 ? line.style_dashed : line.style_solid
+        zigzag := create_zigzag_line(px1, py1, pivot_bar, ph, miss_pl_css, zigzag_style)
+    
+    py1 := ph
+    px1 := pivot_bar
+    os := 1
+    max := ph
+    min := ph
+    
+    if array.size(pivots) > max_measurements + 1
+        array.shift(pivots)
+
+if not na(pl)
+    pivot_bar = n - pivot_length
+    
+    if show_miss
+        if os[1] == 0 and max_x1 > 0
+            add_pivot_and_label(max_x1, max, true, true)
+            zigzag := create_zigzag_line(px1, py1, max_x1, max, miss_pl_css, line.style_dashed)
+            px1 := max_x1
+            py1 := max
+            update_ghost_level(px1)
+            ghost_level := create_ghost_level(px1, py1, reg_ph_css)
+        else if pl > min
+            if min_x1 > 0
+                add_pivot_and_label(min_x1, min, false, true)
+                zigzag := create_zigzag_line(px1, py1, min_x1, min, miss_ph_css, line.style_dashed)
+                px1 := min_x1
+                py1 := min
+                update_ghost_level(px1)
+                ghost_level := create_ghost_level(px1, py1, reg_pl_css)
+            if follow_max_x1 > 0
+                add_pivot_and_label(follow_max_x1, follow_max, true, true)
+                zigzag := create_zigzag_line(px1, py1, follow_max_x1, follow_max, miss_pl_css, line.style_dashed)
+                px1 := follow_max_x1
+                py1 := follow_max
+                update_ghost_level(px1)
+                ghost_level := create_ghost_level(px1, py1, reg_ph_css)
+    
+    if show_reg
+        add_pivot_and_label(pivot_bar, pl, false, false)
+        zigzag_style = pl > min or os[1] == 0 ? line.style_dashed : line.style_solid
+        zigzag := create_zigzag_line(px1, py1, pivot_bar, pl, miss_ph_css, zigzag_style)
+    
+    py1 := pl
+    px1 := pivot_bar
+    os := 0
+    max := pl
+    min := pl
+    
+    if array.size(pivots) > max_measurements + 1
+        array.shift(pivots)
+
+var label lbl = na
+var line last_zigzag = na
+var line last_ghost = na
+if barstate.islast
+    prices = array.new_float()
+    prices_x = array.new_int()
+    
+    for i = 0 to n - px1 - 1
+        array.push(prices, os == 1 ? low[i] : high[i])
+        array.push(prices_x, n - i)
+    
+    label.delete(lbl[1])
+    
+    is_low = os == 1
+    y = is_low ? array.min(prices) : array.max(prices)
+    x = array.get(prices_x, array.indexof(prices, y))
+    
+    if show_miss and x > 0
+        add_pivot_and_label(x, y, not is_low, true)
+        lbl := label.new(x, y, "👻", xloc=xloc.bar_index, yloc=yloc.price, color=is_low ? miss_pl_css : miss_ph_css, style=is_low ? label.style_label_up : label.style_label_down, textcolor=color.white, size=size.small, tooltip=str.tostring(y, "#.####"))
+    
+    if show_miss
+        line.delete(last_zigzag)
+        last_zigzag := line.new(px1, py1, x, y, color=is_low ? miss_ph_css : miss_pl_css, style=line.style_dashed)
+    
+    line.delete(last_ghost)
+    last_ghost := line.new(x, y, n, y, color=color.new(is_low ? miss_ph_css : miss_pl_css, 50), width=2)
+    
+    if array.size(pivots) > max_measurements + 1
+        array.shift(pivots)
+
+avg_volume_20 = ta.sma(volume, 20)
+
+sort_pivots_by_bar(pivot_array) =>
+    sorted = array.new<Pivot>()
+    for i = 0 to array.size(pivot_array) - 1
+        array.push(sorted, array.get(pivot_array, i))
+    
+    for i = 0 to array.size(sorted) - 2
+        for j = 0 to array.size(sorted) - 2 - i
+            p1 = array.get(sorted, j)
+            p2 = array.get(sorted, j + 1)
+            if p1.bar > p2.bar
+                array.set(sorted, j, p2)
+                array.set(sorted, j + 1, p1)
+    sorted
+
+create_measurement(start_pivot, end_pivot) =>
+    is_upward = start_pivot.price > end_pivot.price
+    duration_bars = start_pivot.bar - end_pivot.bar
+    price_change = start_pivot.price - end_pivot.price
+    price_change_pct = (price_change / end_pivot.price) * 100
+    volume_total = avg_volume_20 * duration_bars
+    Measurement.new(start_pivot.bar, start_pivot.price, end_pivot.bar, end_pivot.price, is_upward, duration_bars, price_change, price_change_pct, volume_total)
+
+if barstate.islast and array.size(pivots) > 1
+    array.clear(measurements)
+    sorted_pivots = sort_pivots_by_bar(pivots)
+    
+    num_measurements = math.min(max_measurements, array.size(sorted_pivots) - 1)
+    for i = 0 to num_measurements - 1
+        start_idx = array.size(sorted_pivots) - 1 - i
+        end_idx = start_idx - 1
+        
+        if end_idx >= 0
+            start_pivot = array.get(sorted_pivots, start_idx)
+            end_pivot = array.get(sorted_pivots, end_idx)
+            array.push(measurements, create_measurement(start_pivot, end_pivot))
+
+format_duration(bars) =>
+    timeframe_mult = timeframe.in_seconds()
+    total_seconds = bars * timeframe_mult
+    days = math.floor(total_seconds / 86400)
+    hours = math.floor((total_seconds % 86400) / 3600)
+    minutes = math.floor((total_seconds % 3600) / 60)
+    days_str = days > 0 ? str.tostring(days) + "j " : ""
+    hours_str = hours > 0 ? str.tostring(hours) + "h " : ""
+    minutes_str = minutes > 0 ? str.tostring(minutes) + "m" : ""
+    str.tostring(bars) + " barres, " + days_str + hours_str + minutes_str
+
+format_price_change(change, change_pct, abs_change) =>
+    change_str = str.replace_all(str.tostring(change, "#,###.##"), ".", ",")
+    pct_str = str.replace_all(str.tostring(change_pct, "#,###.##"), ".", ",")
+    abs_str = str.replace_all(str.tostring(abs_change, "#,###"), ".", ",")
+    change_str + " (" + pct_str + "%) " + abs_str
+
+format_volume(vol) =>
+    if vol >= 1000000
+        str.replace_all(str.tostring(vol / 1000000, "#,###.##"), ".", ",") + " M"
+    else if vol >= 1000
+        str.replace_all(str.tostring(vol / 1000, "#,###.##"), ".", ",") + " K"
+    else
+        str.replace_all(str.tostring(vol, "#,###"), ".", ",")
+
+get_label_size() =>
+    switch label_size
+        "tiny" => size.tiny
+        "small" => size.small
+        "normal" => size.normal
+        "large" => size.large
+        => size.small
+
+var box[] measurement_boxes = array.new<box>()
+var label[] measurement_labels = array.new<label>()
+
+clear_display_objects() =>
+    if array.size(measurement_boxes) > 0
+        for i = 0 to array.size(measurement_boxes) - 1
+            box.delete(array.get(measurement_boxes, i))
+    if array.size(measurement_labels) > 0
+        for i = 0 to array.size(measurement_labels) - 1
+            label.delete(array.get(measurement_labels, i))
+    array.clear(measurement_boxes)
+    array.clear(measurement_labels)
+
+create_measurement_display(m) =>
+    if not na(m.start_bar) and not na(m.end_bar) and m.start_bar > m.end_bar and m.start_bar < bar_index and m.end_bar < bar_index
+        is_positive = m.price_change >= 0
+        box_color = is_positive ? color.new(color.blue, box_transparency) : color.new(color.red, box_transparency)
+        border_color = is_positive ? color.new(color.blue, border_transparency) : color.new(color.red, border_transparency)
+        label_color = is_positive ? color.blue : color.red
+        
+        top_price = math.max(m.start_price, m.end_price)
+        bottom_price = math.min(m.start_price, m.end_price)
+        price_range = top_price - bottom_price
+        label_spacing = math.max(price_range * 0.01, close * 0.001)
+        
+        if show_boxes
+            measurement_box = box.new(left=m.end_bar, top=top_price, right=m.start_bar, bottom=bottom_price, border_color=border_color, border_width=1, bgcolor=box_color, extend=extend.none)
+            array.push(measurement_boxes, measurement_box)
+            
+            price_change_str = format_price_change(m.price_change, m.price_change_pct, math.abs(m.price_change))
+            duration_str = format_duration(m.duration_bars)
+            volume_str = "Vol " + format_volume(m.volume_total)
+            label_text = price_change_str + "\n" + duration_str + "\n" + volume_str
+            
+            label_x = math.round((m.end_bar + m.start_bar) / 2)
+            label_y = is_positive ? (top_price + label_spacing) : (bottom_price - label_spacing)
+            label_style = is_positive ? label.style_label_down : label.style_label_up
+            
+            measurement_label = label.new(x=label_x, y=label_y, text=label_text, xloc=xloc.bar_index, yloc=yloc.price, color=color.new(label_color, label_bg_transparency), style=label_style, textcolor=color.white, size=get_label_size())
+            array.push(measurement_labels, measurement_label)
+
+if barstate.islast and array.size(measurements) > 0
+    clear_display_objects()
+    for i = 0 to array.size(measurements) - 1
+        create_measurement_display(array.get(measurements, i))

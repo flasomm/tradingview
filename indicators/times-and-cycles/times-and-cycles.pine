@@ -1,5 +1,5 @@
 //@version=6
-indicator("[SF] Time & Cycles", overlay=true, max_bars_back=5000)
+indicator("[FS] Time & Cycles", overlay=true, max_bars_back=5000)
 
 
 // === PREVIOUS HIGH/LOW ===
